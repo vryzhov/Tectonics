@@ -1,0 +1,121 @@
+---
+title: "Tectonics data"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r libs, message=FALSE, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+
+library(data.table)
+library(magrittr)
+library(rmarkdown)
+library(hht)
+library(EMD)
+library(Rlibeemd)
+library(ggplot2)
+library(xts)
+library(seewave)
+library(forecast)
+
+
+theme_set(theme_minimal())
+
+```
+
+# Load data
+
+
+```{r input.file, message=FALSE}
+df.raw <- fread("./data/2021-05-19.drop-nospace.tsv", skip = 3)
+```
+
+The file "2021-05-19.drop-nospace.tsv" with fields:
+
+`r names(df.raw)`
+
+Record count: **`r nrow(df.raw)`**.
+
+Only **Time**, **Drp**, **Gravity** will be used
+
+```{r load, message=FALSE}
+
+df.signal <- df.raw[,.(Time, Drp, Gravity, DOY, Year)]
+
+
+df.signal[, Time := as.POSIXct(paste(as.character(as.Date(DOY, origin = paste0(Year, "-01-01" )) ), Time) )]
+
+df.signal[, `:=`( DOY = NULL, Year = NULL) ]
+
+head(df.signal) 
+
+```
+
+ Plotting gravity over time
+ 
+```{r plot1}
+
+ggplot(df.signal, aes(x= Time,y = Gravity/100000000 )) + geom_line() + ggtitle("Signal") 
+
+ggAcf(
+  df.signal$Gravity,
+  lag.max = NULL,
+  type = c("correlation"),
+  plot = TRUE,
+  na.action = na.contiguous,
+  demean = TRUE
+) + ggtitle("Autocorrelation function of the signal")
+
+
+
+seewave::hilbert(ts(df.signal$Gravity), f = 1) %>% Arg() %>% diff() ->  hG
+  
+df.signal$freq <- c(0,hG)
+
+ggplot(df.signal[freq < 0.1], aes(x= freq, y = ..density..))  + geom_density()
+
+
+# 
+# pgram <- function(z)
+# {
+#   n <- length(z)
+#   (Mod(fft(z))^2/(2 * pi * n) )[1:(n %/% 2 + 1)] 
+# }
+# 
+# 
+# fft(df$Gravity) %>% Arg() %>% diff() %>% abs() %>% plot(type = 'h')
+# 
+# 
+
+sig <- 3*sin( 2* pi *.04 *(1:1000))  +  2*sin( 2* pi *.02 *(1:1000)) + 0.2 * rnorm(1000, 0,.5)
+
+plot(sig, type = 'l')
+
+seewave::hilbert(ts(sig), f = 100) %>% Arg() %>% diff() %>%  abs() -> hSig
+  
+ggplot(data.table(hSig/(2*pi) )[V1 < .5], aes(x= V1, y = ..density..))  + geom_density(bw = .001) 
+
+fft(sig) %>% Arg() %>% diff() %>%  abs()  -> fSig
+
+ggplot(data.table(fSig)[fSig < 10], aes(x= fSig, y = ..density..))  + geom_density(bw = .1) 
+
+
+
+
+
+
+
+
+# 
+# pr <- pgram(sig)
+# 
+# d <- fft(sin(2*pi *.05 *(1:1000)) ) 
+# %>% Arg() %>% abs() %>% diff() %>% plot()
+# 
+
+
+```
+
