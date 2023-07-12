@@ -1,3 +1,3 @@
 # Tectonics
 
-Some code for tectonics data analysis. Early warnings signs of major earthquakes 
+Some code for tectonics data analysis. Early warning signs of major earthquakes 
